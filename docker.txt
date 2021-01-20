@@ -1,0 +1,45 @@
+1.构建ubuntu镜像添加中文环境，并且下载插件时更新源
+# 集成arthas
+FROM hengyunabc/arthas:3.1.7-no-jdk
+COPY --from=hengyunabc/arthas:3.1.7-no-jdk /opt/arthas /opt/arthas
+
+FROM 192.168.138.182:8029/library/ubuntu16-oraclejdk8:2.0
+
+LABEL author=YanQiqnag
+LABEL name=business-platform-sample
+
+# 执行以下命令，添加中文环境。centos 下载命令改成centos下的命令就可以
+RUN apt-get -y install net-tools --no-install-recommends -y  && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    mkdir -p /usr/share/fonts/myfonts && \
+    chmod -R 755 /usr/share/fonts/myfonts && \
+    apt-get update && \
+    apt-get -y install ttf-mscorefonts-installer && \
+    apt-get -y install fontconfig && \
+    mkfontscale && \
+    mkfontdir && \
+    fc-cache -fv && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /data/app
+ARG DEPEND_LIB
+ADD ${DEPEND_LIB} /data/app/lib/
+ARG JAR_FILE
+ADD ${JAR_FILE} /data/app/lib/
+ARG CONF_FILE
+ADD ${CONF_FILE} /data/app/config/
+ARG HTTP_FILE
+ADD ${HTTP_FILE} /data/app/config/
+ARG LOGBACK
+ADD ${LOGBACK} /data/app/config/
+ARG TTC_FILE
+ADD ./bin/*.sh /data/app/
+RUN for FILENAME in ./lib/*.jar.original; do mv "${FILENAME}" ${FILENAME%.*} ; done
+
+#RUN chmod -R 777 /data/app
+ENV LANG C.UTF-8
+COPY ${TTC_FILE} /usr/share/fonts/myfonts
+ENTRYPOINT ["/data/app/entrypoint.sh"]
+EXPOSE 8002
+

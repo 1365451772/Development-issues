@@ -1,0 +1,128 @@
+version: '3.7'
+services:
+  tp-nacos:
+    image: harbor.bangcle.net:8029/library/nacos-server:1.1.4
+    container_name: tp-nacos-test
+    env_file:
+      - /data/docker/tp-env/nacos.env
+    volumes:
+      - /data/docker/tp-volume/nacos/log:/home/nacos/logs
+      - /data/docker/tp-volume/nacos/data:/home/nacos/data
+      - /data/docker/tp-init/mysql-plugins:/home/nacos/plugins/mysql
+      - /data/docker/tp-env/nacos-startup.sh:/home/nacos/bin/docker-startup.sh
+      - /data/docker/tp-env/nacos-health-check.sh:/opt/nacos-health-check.sh
+      - /data/docker/tp-env/custom.properties:/home/nacos/init.d/custom.properties
+    ports:
+      - '8848:8848'
+      - "9555:9555"
+    depends_on:
+      - tp-mysql-test
+    restart: always
+    healthcheck:
+      test: ["CMD", "/bin/bash", "/opt/nacos-health-check.sh"]
+      interval: 90s
+      timeout: 20s
+      retries: 10
+    networks:
+      - tpnet
+  tp-mysql:
+    container_name: tp-mysql-test
+    image: harbor.bangcle.net:8029/library/mysql:8.0.18
+    env_file:
+      - /data/docker/tp-env/mysql.env
+    volumes:
+      - /data/docker/tp-volume/mysql/data:/var/lib/mysql
+      - /data/docker/tp-env/my.cnf:/etc/mysql/my.cnf
+      - /data/docker/tp-init/sql/scheduler-init.sql:/docker-entrypoint-initdb.d/scheduler-init.sql
+      - /data/docker/tp-init/sql/nacos-init.sql:/docker-entrypoint-initdb.d/nacos-init.sql
+    ports:
+      - '33060:3306'
+    restart: always
+    healthcheck:
+      test: mysqladmin -uroot -pwww@admin@2020 ping
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - tpnet
+  tp-nacos-config-init:
+    image: harbor.bangcle.net:8029/tool-platform/nacos-config-init:stable
+    container_name: tp-nacos-config-init-test
+    env_file:
+      - /data/docker/tp-env/nacos_config_init.env
+    volumes:
+      - /data/docker/tp-init/nacos-config:/data/app/data
+    depends_on:
+      - tp-nacos-test
+    restart: on-failure
+    networks:
+      - tpnet
+  tp-minio:
+    image: harbor.bangcle.net:8029/library/minio:RELEASE.2020-02-27T00-23-05Z
+    container_name: tp-minio-test
+    volumes:
+      - /data/docker/tp-volume/minio/data:/data
+    ports:
+      - "9000:9000"
+    env_file:
+      - /data/docker/tp-env/minio.env
+    command: server /data
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+    networks:
+      - tpnet
+  tp-engine-scheduler:
+    container_name: tp-engine-scheduler-test
+    image: harbor.bangcle.net:8029/tool-platform/engine-scheduler:ver1.8.10_GENPLAT_cc_20210119.1
+    volumes:
+      - /data/docker/tp-volume/engine-scheduler/log:/data/app/log
+      - ./tool-platform-common-0.0.5-SNAPSHOT.jar:/data/app/lib/tool-platform-common-0.0.5-SNAPSHOT.jar
+      #- ./engine-scheduler.jar:/data/app/lib/engine-scheduler.jar
+      - ./application.properties:/data/app/config/application.properties
+    env_file:
+      - /data/docker/tp-env/scheduler.env
+    ports:      
+      - "8008:8008"
+    depends_on:
+      - tp-mysql-test
+      - tp-nacos-test
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/swagger-ui.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - tpnet
+  tp-web-backend:
+    container_name: tp-web-backend-test
+    image: 192.168.138.182:8029/tool-platform/business-platform-sample:ver1.8.10_GENPLAT_cc_20210118.1 
+    volumes:
+      - ./application.properties:/data/app/config/application.properties
+    ports:
+      - '8003:8002'
+    depends_on:
+      - tp-engine-scheduler-test
+    restart: on-failure
+    networks:
+      - tpnet
+  tp-app-parser:
+    container_name: tp-app-parser-test
+    image: 192.168.138.182:8029/tool_platform_engine/app-parser:0.0.1
+    env_file:
+      - /data/docker/tp-env/appparser.env
+    restart: always
+    ports:
+      - "8001:8001"
+    depends_on:
+      - tp-nacos-test
+    networks:
+      - tpnet
+networks:
+  tpnet:
+    name: tp_network
+    driver: bridge

@@ -1,0 +1,38 @@
+//spring boot获取类路径 获取当前类路径
+        String springbooPath1 = ClassUtils.getDefaultClassLoader().getResource("").getPath();
+        System.out.println("springbooPath1:"+springbooPath1);
+        String springbooPath2 = ResourceUtils.getURL("classpath:").getPath();
+        System.out.println("springbooPath2:"+springbooPath2);
+        //不能这样写
+       // String springbooPath3 = ClassUtils.getDefaultClassLoader().getResource("/").getPath();
+
+        //环境变量中的属性
+        Properties properties = System.getProperties();
+        //jar包所在的路径
+        String dir = properties.getProperty("user.dir");
+        System.out.println("dir:"+dir);
+        String realPath = properties.getProperty("realPath");
+        System.out.println("realPath:"+realPath);
+        String jarWholePath = properties.getProperty("jarWholePath");
+        System.out.println("jarWholePath:"+jarWholePath);
+
+        String protectionDomain = MonitorController.class.getProtectionDomain().getCodeSource().getLocation().getFile();
+        System.out.println("protectionDomain:"+protectionDomain);
+
+        //class 获取方式 获取当前类文件所在路径
+        String classPath = this.getClass().getResource("").getPath();
+        System.out.println("classPath:"+classPath);
+        //class 获取方式 获取当前类路径
+        String classPath2 = this.getClass().getResource("/").getPath();
+        System.out.println("classPath2:"+classPath2);
+
+        //通过类加载器获取jar包的绝对路径
+        String classLoaderPath = MonitorController.class.getClassLoader().getResource("").getPath();
+        System.out.println("classLoaderPath:"+classLoaderPath);
+        //不能这样写
+//        String classLoaderPath2 = MonitorController.class.getClassLoader().getResource("/").getFile();
+
+        URL contextClassPath1 = Thread.currentThread().getContextClassLoader().getResource("");
+        System.out.println("contextClassPath1:"+contextClassPath1.getPath());
+        //不能这样写
+//        URL contextClassPath2 = Thread.currentThread().getContextClassLoader().getResource("/");
